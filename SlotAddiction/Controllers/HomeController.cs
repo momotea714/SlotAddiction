@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using System.Web.Helpers;
 using System.Web.Mvc;
 
 namespace SlotAddiction.Controllers
@@ -13,18 +14,17 @@ namespace SlotAddiction.Controllers
             return View();
         }
 
-        public ActionResult About()
+        public JsonResult Select(DateTime date)
         {
-            ViewBag.Message = "Your application description page.";
+            //ここで呼び出し
+            var objList = new List<object>();
+            objList.Add(new { id = 1, name = "hoge" });
+            objList.Add(new { id = 2, name = "foo" });
 
-            return View();
+            //response
+            var obj = new { status = "OK", data = objList };
+            return Json(obj, JsonRequestBehavior.AllowGet);
         }
 
-        public ActionResult Contact()
-        {
-            ViewBag.Message = "Your contact page.";
-
-            return View();
-        }
     }
 }

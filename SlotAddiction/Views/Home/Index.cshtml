@@ -1,31 +1,39 @@
-﻿@{
-    ViewBag.Title = "Home Page";
-}
+﻿
+<input type="text" id="selectDate" class="form-inline datepicker" placeholder="抽出日" />
+<input type="button" class = "btn btn-primary btn-large" id="btnSelect" value="うい！" />
 
-<div class="jumbotron">
-    <h1>ASP.NET</h1>
-    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-    <p><a href="https://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
-</div>
+<script type="text/javascript">
+    $(function () {
+        var dateFormat = 'yyyy/mm/dd';
+        var inputDate = $('#selectDate').datepicker({
+            language: 'ja'
+            , format: dateFormat
+            ,dateFormat: dateFormat
+        });
 
-<div class="row">
-    <div class="col-md-4">
-        <h2>Getting started</h2>
-        <p>
-            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-            enables a clean separation of concerns and gives you full control over markup
-            for enjoyable, agile development.
-        </p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Get more libraries</h2>
-        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Web Hosting</h2>
-        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
-    </div>
-</div>
+        $('#btnSelect').click(function () {
+            var date = inputDate.datepicker('getDate');
+            var yyyyMMdd = date.getFullYear() + "/"+
+                ("0" + (date.getMonth() + 1)).slice(-2) + "/" +
+                ("0" + date.getDate()).slice(-2);
+            var postData = { date: yyyyMMdd };
+
+            $.ajax({
+                type: 'GET',
+                url: './Home/Select',
+                data: postData,
+                dataType: 'json'
+            }).done((data, textStatus, jqXHR) => {
+                console.log('dkone', jqXHR.status);
+
+
+            }).fail((jqXHR, textStatus, errorThrown) => {
+                console.log('fail', jqXHR.status);
+            }).always(() => {
+                console.log('always');
+            });
+        });
+
+
+    });
+</script>
