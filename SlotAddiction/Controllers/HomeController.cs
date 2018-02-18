@@ -12,7 +12,7 @@ namespace SlotAddiction.Controllers
     public class HomeController : Controller
     {
         #region フィールド
-        private Slot _slot = new Slot();
+        private readonly Slot _slot = new Slot();
         #endregion
 
         public ActionResult Index()
@@ -20,10 +20,10 @@ namespace SlotAddiction.Controllers
             return View();
         }
 
-        public async Task<JsonResult> Select(DateTime date)
-        {
-            return await Select(date, null);
-        }
+        //public async Task<JsonResult> Select(DateTime date)
+        //{
+        //    return await Select(date, null);
+        //}
 
         public async Task<JsonResult> Select(DateTime date, string slotModel)
         {

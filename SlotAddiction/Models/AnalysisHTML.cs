@@ -1,19 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
-using Reactive.Bindings;
+using SlotAddiction.Const;
 
 namespace SlotAddiction.Models
 {
     public class AnalysisHTML
     {
-        #region プロパティ
-        public ReactiveProperty<SlotPlayData> SlotPlayData { get; set; }
-        public SlotPlayData SlotPlayData_ { get; set; }
-        #endregion
-
         #region メソッド
         /// <summary>
         /// HTMLを解析します。
@@ -22,61 +19,7 @@ namespace SlotAddiction.Models
         /// <returns></returns>
         public async Task<SlotPlayData> AnalyseAsync(Stream html)
         {
-            if (html == null) return null;
-
-            SlotPlayData = new ReactiveProperty<SlotPlayData>();
-            SlotPlayData_ = new SlotPlayData();
-
-            // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
-            var parser = new HtmlParser();
-            var doc = await parser.ParseAsync(html);
-
-            //Bodyを取得
-            var body = doc.QuerySelector("#Main-Contents");
-
-            //台名を取得
-            var id_pachinkoTi = body.QuerySelector("#pachinkoTi");
-            var slotMachineTitle = id_pachinkoTi.QuerySelector("strong").TextContent;
-
-            //以下のように取得される
-            //(20円スロット                            | 1番台)
-            var coinPriceAndMachineNO = id_pachinkoTi.QuerySelector("span").TextContent;
-            var coinPriceAndMachineNOFormat = coinPriceAndMachineNO.Substring(1, coinPriceAndMachineNO.Length - 2).Split('|');
-            for (var i = 0; i < coinPriceAndMachineNOFormat.Length; ++i)
-            {
-                coinPriceAndMachineNOFormat[i] = coinPriceAndMachineNOFormat.ElementAt(i).Trim();
-            }
-
-            //コイン単価を取得する
-            var coinPricePosition = coinPriceAndMachineNOFormat.First().IndexOf('円');
-            var coinPrice = coinPriceAndMachineNOFormat.First().Substring(0, coinPricePosition);
-
-            //台番号を取得する
-            var machineNOPosition = coinPriceAndMachineNOFormat.ElementAt(1).IndexOf('番');
-            var machineNO = coinPriceAndMachineNOFormat.ElementAt(1).Substring(0, machineNOPosition);
-
-            //最新更新日時を取得する
-            var latestClass = body.QuerySelector(".latest");
-            var latest = (latestClass == null) ? body.QuerySelector(".older").TextContent : latestClass.TextContent;
-
-            //各回数を取得する
-            var bbCount = body.QuerySelector(".Text-Big25").TextContent;
-            var textBig19classes = body.QuerySelectorAll(".Text-Big19");
-            var rbCount = textBig19classes.First().TextContent;
-            var artCount = textBig19classes.ElementAt(1).TextContent;
-            var startCount = textBig19classes.ElementAt(2).TextContent;
-
-            return new SlotPlayData
-            {
-                Title = slotMachineTitle,
-                CoinPrice = Convert.ToInt32(coinPrice),
-                MachineNO = Convert.ToInt32(machineNO),
-                LatestUpdateDatetime = latest,
-                BigBonusCount = Convert.ToInt32(bbCount),
-                RegulerBonusCount = Convert.ToInt32(rbCount),
-                ARTCount = Convert.ToInt32(artCount),
-                StartCount = Convert.ToInt32(startCount),
-            };
+            return await AnalyseAsync(html, null);
         }
         /// <summary>
         /// HTMLを解析します。
@@ -133,6 +76,17 @@ namespace SlotAddiction.Models
             var rbCount = textBig19classes.First().TextContent;
             var artCount = textBig19classes.ElementAt(1).TextContent;
             var startCount = textBig19classes.ElementAt(2).TextContent;
+            string throughType = null;
+            var throughCount = 0;
+
+            //取得した機種がスルー回数を狙える機種ならばスルー回数を取得する
+            if (SlotModel.ThroughCountAimList.Contains(slotMachineTitle))
+            {
+                if (slotMachineTitle == SlotModel.Basilisk_Kizuna)
+                {
+                    throughType = "BB";
+                }
+            }
 
             return new SlotPlayData
             {
@@ -146,6 +100,43 @@ namespace SlotAddiction.Models
                 StartCount = Convert.ToInt32(startCount),
             };
         }
+        /// <summary>
+        /// 指定した機種が何番から何番まで置いてあるのかを取得
+        /// </summary>
+        /// <param name="html"></param>
+        /// <param name="slotModel"></param>
+        /// <returns></returns>
+        public async Task<List<int>> AnalyseFloorAsync(Stream html, string slotModel)
+        {
+            var slotModelUnits = new List<int>();
+            if (html != null
+                && slotModel != null)
+            {
+                // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
+                var parser = new HtmlParser();
+                var doc = await parser.ParseAsync(html);
+
+                //機種一覧の一覧を取得
+                var animatedModalShowUnitName = doc.QuerySelector("#animatedModalShowUnitName .list2col");
+                var slotModelList = animatedModalShowUnitName.QuerySelectorAll("ul");
+
+                foreach (var slot in slotModelList)
+                {
+                    var slotMachineTitle = slot.QuerySelectorAll("h2").ElementAt(1).TextContent;
+                    if (slotMachineTitle == slotModel)
+                    {
+                        var aTagText = slot.QuerySelector("a").Text().Trim();
+                        var unitStartNoIndex = aTagText.LastIndexOf(' ');
+                        var unitNo = aTagText.Substring(unitStartNoIndex + 1).Split('～');
+                        slotModelUnits.AddRange(unitNo.Select(x => Convert.ToInt32(x)));
+                        return slotModelUnits;
+                    }
+                }
+            }
+
+            return slotModelUnits;
+        }
+
         #endregion
     }
 }

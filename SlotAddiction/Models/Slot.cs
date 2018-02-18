@@ -110,22 +110,41 @@ namespace SlotData.Models
             var year = dataDate.Year;
             var month = dataDate.Month;
             var day = dataDate.Day;
-
             var tempos = new SlotAddictionDBContext().Tempos.ToList();
-
 
             //_slotDataApiUrl = new Url($"https://daidata.goraggio.com/{storeID}/detail?unit={slotMachineNo}&target_date={year}-{month}-{day}");
             try
             {
                 foreach (var tempo in tempos)
                 {
-                    for (var slotMachineNo = tempo.SlotMachineStartNo; slotMachineNo <= tempo.SlotMachineEndNo; ++slotMachineNo)
+                    var startN0 = tempo.SlotMachineStartNo;
+                    var endNo = tempo.SlotMachineEndNo;
+
+                    if (slotModel != null)
                     {
-                        _slotDataApiUrl = new Url($"{tempo.StoreURL}unit={slotMachineNo}&target_date={year}-{month}-{day}");
+                        //店舗のフロアURLを作成
+                        var floorUrl = new Url($"{tempo.StoreURL}floor");
+
+                        //URL内のソースを取得
+                        var response = await _httpClient.GetStreamAsync(floorUrl);
+
+                        //取得したソースを解析
+                        var floorDataForSlotModel = await _analysisHTML.AnalyseFloorAsync(response, slotModel);
+                        startN0 = floorDataForSlotModel.Min();
+                        endNo = floorDataForSlotModel.Max();
+                    }
+
+                    for (var slotMachineNo = startN0; slotMachineNo <= endNo; ++slotMachineNo)
+                    {
+                        //リクエストを投げるURLを作成
+                        _slotDataApiUrl = new Url($"{tempo.StoreURL}detail?unit={slotMachineNo}&target_date={year}-{month}-{day}");
+
                         //URL内のソースを取得
                         var response = await _httpClient.GetStreamAsync(_slotDataApiUrl);
+
                         //取得したソースを解析
                         var analysisSlotData = await _analysisHTML.AnalyseAsync(response, slotModel);
+
                         //解析したデータをコレクションに追加
                         SlotPlayDataCollection.Add(analysisSlotData);
                     }
