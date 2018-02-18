@@ -1,0 +1,42 @@
+﻿@model SlotAddiction.Models.SlotModel
+
+@{
+    ViewBag.Title = "Details";
+}
+
+<h2>Details</h2>
+
+<div>
+    <h4>SlotModel</h4>
+    <hr />
+    <dl class="dl-horizontal">
+        <dt>
+            @Html.DisplayNameFor(model => model.SlotModelName)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.SlotModelName)
+        </dd>
+
+        <dt>
+            @Html.DisplayNameFor(model => model.SlotModelShortName)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.SlotModelShortName)
+        </dd>
+
+        <dt>
+            @Html.DisplayNameFor(model => model.ThroughType)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.ThroughType)
+        </dd>
+
+    </dl>
+</div>
+<p>
+    @Html.ActionLink("Edit", "Edit", new { id = Model.Id }) |
+    @Html.ActionLink("Back to List", "Index")
+</p>

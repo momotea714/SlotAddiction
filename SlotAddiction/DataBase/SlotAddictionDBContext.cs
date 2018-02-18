@@ -13,5 +13,6 @@ namespace SlotAddiction.DataBase
         {
         }
         public DbSet<Tempo> Tempos { get; set; }
+        public DbSet<SlotModel> SlotModels { get; set; }
     }
 }

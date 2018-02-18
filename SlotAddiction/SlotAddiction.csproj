@@ -181,8 +181,8 @@
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
-    <Compile Include="Const\SlotModel.cs" />
     <Compile Include="Controllers\HomeController.cs" />
+    <Compile Include="Controllers\SlotModelController.cs" />
     <Compile Include="Controllers\TempoController.cs" />
     <Compile Include="DataBase\SlotAddictionDBContext.cs" />
     <Compile Include="Global.asax.cs">
@@ -192,15 +192,21 @@
     <Compile Include="Migrations\201802180523361_CreateTempoTable.Designer.cs">
       <DependentUpon>201802180523361_CreateTempoTable.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201802181450374_CreateSlotModelTable.cs" />
+    <Compile Include="Migrations\201802181450374_CreateSlotModelTable.Designer.cs">
+      <DependentUpon>201802181450374_CreateSlotModelTable.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\AnalysisHTML.cs" />
-    <Compile Include="Models\Class.cs" />
+    <Compile Include="Models\SlotModel.cs" />
+    <Compile Include="Models\Tempo.cs" />
     <Compile Include="Models\Slot.cs" />
     <Compile Include="Models\SlotPlayData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\bootstrap-datepicker3.min.css" />
+    <Content Include="Content\bootstrap-select.min.css" />
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
     <Content Include="favicon.ico" />
@@ -208,6 +214,7 @@
     <Content Include="Global.asax" />
     <Content Include="Content\Site.css" />
     <Content Include="Scripts\bootstrap-datepicker.min.js" />
+    <Content Include="Scripts\bootstrap-select.min.js" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="ApplicationInsights.config">
@@ -241,9 +248,15 @@
     <Content Include="Views\Tempo\Details.cshtml" />
     <Content Include="Views\Tempo\Edit.cshtml" />
     <Content Include="Views\Tempo\Index.cshtml" />
+    <Content Include="Views\SlotModel\Create.cshtml" />
+    <Content Include="Views\SlotModel\Delete.cshtml" />
+    <Content Include="Views\SlotModel\Details.cshtml" />
+    <Content Include="Views\SlotModel\Edit.cshtml" />
+    <Content Include="Views\SlotModel\Index.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
+    <Folder Include="Const\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="fonts\glyphicons-halflings-regular.woff" />
@@ -261,6 +274,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Migrations\201802180523361_CreateTempoTable.resx">
       <DependentUpon>201802180523361_CreateTempoTable.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201802181450374_CreateSlotModelTable.resx">
+      <DependentUpon>201802181450374_CreateSlotModelTable.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

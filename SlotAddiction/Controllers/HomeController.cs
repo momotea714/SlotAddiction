@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Helpers;
 using System.Web.Mvc;
+using SlotAddiction.DataBase;
 using SlotData.Models;
 
 namespace SlotAddiction.Controllers
@@ -13,10 +14,12 @@ namespace SlotAddiction.Controllers
     {
         #region フィールド
         private readonly Slot _slot = new Slot();
+        private SlotAddictionDBContext db = new SlotAddictionDBContext();
         #endregion
 
         public ActionResult Index()
         {
+            ViewBag.SlotModels = db.SlotModels.ToList();
             return View();
         }
 
@@ -28,7 +31,9 @@ namespace SlotAddiction.Controllers
         public async Task<JsonResult> Select(DateTime date, string slotModel)
         {
             //ここで呼び出し
-            await _slot.GetSlotDataAsync(date, slotModel);
+            var slotModels = slotModel.Split(',');
+            //GetSlotDataAsyncがそのうちlistを取れるようにどら君がしてくれるだろう
+            await _slot.GetSlotDataAsync(date, slotModels[0]);
 
             //response
             var obj = new { status = "OK", data = _slot.SlotPlayDataCollection };

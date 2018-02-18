@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
-using SlotAddiction.Const;
+using SlotAddiction.DataBase;
 
 namespace SlotAddiction.Models
 {
@@ -80,12 +80,12 @@ namespace SlotAddiction.Models
             var throughCount = 0;
 
             //取得した機種がスルー回数を狙える機種ならばスルー回数を取得する
-            if (SlotModel.ThroughCountAimList.Contains(slotMachineTitle))
+            var db = new SlotAddictionDBContext();
+            var slotmodels = db.SlotModels.Where(x => x.SlotModelName.Contains(slotMachineTitle));
+            if (slotmodels.Any())
             {
-                if (slotMachineTitle == SlotModel.Basilisk_Kizuna)
-                {
-                    throughType = "BB";
-                }
+                throughType = slotmodels.Single().ThroughType;
+                //throughType = "BB";
             }
 
             return new SlotPlayData
