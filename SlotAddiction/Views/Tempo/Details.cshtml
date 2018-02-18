@@ -1,0 +1,50 @@
+﻿@model SlotAddiction.Models.Tempo
+
+@{
+    ViewBag.Title = "Details";
+}
+
+<h2>Details</h2>
+
+<div>
+    <h4>Tempo</h4>
+    <hr />
+    <dl class="dl-horizontal">
+        <dt>
+            @Html.DisplayNameFor(model => model.StoreURL)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.StoreURL)
+        </dd>
+
+        <dt>
+            @Html.DisplayNameFor(model => model.StoreName)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.StoreName)
+        </dd>
+
+        <dt>
+            @Html.DisplayNameFor(model => model.SlotMachineStartNo)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.SlotMachineStartNo)
+        </dd>
+
+        <dt>
+            @Html.DisplayNameFor(model => model.SlotMachineEndNo)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.SlotMachineEndNo)
+        </dd>
+
+    </dl>
+</div>
+<p>
+    @Html.ActionLink("Edit", "Edit", new { id = Model.Id }) |
+    @Html.ActionLink("Back to List", "Index")
+</p>

@@ -11,6 +11,6 @@ namespace SlotAddiction.Models
         public string StoreURL { get; set; }
         public string StoreName { get; set; }
         public int SlotMachineStartNo { get; set; }
-        public int SlotMachineandNo { get; set; }
+        public int SlotMachineEndNo { get; set; }
     }
 }
