@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
@@ -27,7 +28,7 @@ namespace SlotAddiction.Models
         /// <param name="html">解析したいHTMLを指定します。</param>
         /// <param name="slotModel">解析したい機種を指定します。</param>
         /// <returns></returns>
-        public async Task<SlotPlayData> AnalyseAsync(Stream html, string slotModel)
+        public async Task<SlotPlayData> AnalyseAsync(Stream html, List<string> slotModel)
         {
             if (html == null) return null;
 
@@ -44,7 +45,7 @@ namespace SlotAddiction.Models
 
             //指定した機種でなければ終了
             if (slotModel != null &&
-                slotMachineTitle != slotModel)
+                !slotModel.Contains(slotMachineTitle))
             {
                 return null;
             }
@@ -101,42 +102,67 @@ namespace SlotAddiction.Models
             };
         }
         /// <summary>
-        /// 指定した機種が何番から何番まで置いてあるのかを取得
+        /// 指定した機種が何番から何番まで置いてあるのかを取得する
         /// </summary>
         /// <param name="html"></param>
         /// <param name="slotModel"></param>
         /// <returns></returns>
-        public async Task<List<int>> AnalyseFloorAsync(Stream html, string slotModel)
+        public async Task<List<int>> AnalyseFloorAsync(Stream html, List<string> slotModel)
         {
+            if (html == null || slotModel == null) return null;
+
+            //指定した機種が存在する台番号を格納するリストを作成
             var slotModelUnits = new List<int>();
-            if (html != null
-                && slotModel != null)
+
+            // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
+            var parser = new HtmlParser();
+            var doc = await parser.ParseAsync(html);
+
+            //店内の機種一覧を取得
+            var animatedModalShowUnitName = doc.QuerySelector("#animatedModalShowUnitName .list2col");
+
+            //以下のようなデータが設置機種分取得される
+            //<ul>
+            //<li class="Slot">
+            //<a href = "https://daidata.goraggio.com/100359/floor?rank=1F&bid=1&model=%EF%BE%8F%EF%BD%B2%EF%BD%BC%EF%BE%9E%EF%BD%AC%EF%BD%B8%EF%BE%9E%EF%BE%97%EF%BD%B0II" >< h2 >
+            //<h2>ﾏｲｼﾞｬｸﾞﾗｰII</h2>
+            //85～96                                        </a>
+            //</li>
+            //</ul>
+            var slotModelList = animatedModalShowUnitName.QuerySelectorAll("ul");
+
+            //全てのulタグ内の機種名から指定した機種名に合致するデータを取得する
+            var datas = slotModelList.Where(x => slotModel.Contains(x.QuerySelectorAll("h2").ElementAt(1).TextContent)).ToList();
+
+            foreach(var data in datas)
             {
-                // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
-                var parser = new HtmlParser();
-                var doc = await parser.ParseAsync(html);
+                var splitNewline = data.QuerySelector("a").Text().Split('\n');
 
-                //機種一覧の一覧を取得
-                var animatedModalShowUnitName = doc.QuerySelector("#animatedModalShowUnitName .list2col");
-                var slotModelList = animatedModalShowUnitName.QuerySelectorAll("ul");
+                //指定した機種名が存在する台番号を取得する
+                //「85～96」のように取得される
+                var units = Regex.Replace(splitNewline.ElementAt(2), @"\s", string.Empty);
 
-                foreach (var slot in slotModelList)
+                //同機種が散り散りに配置されている場合はカンマ区切りで取得される為に台番号の分解を行う
+                var separationUnits = units.Split(',');
+
+                foreach (var unit in separationUnits)
                 {
-                    var slotMachineTitle = slot.QuerySelectorAll("h2").ElementAt(1).TextContent;
-                    if (slotMachineTitle == slotModel)
+                    //台番号の中に「～」が入っていれば隣り合って同機種が設置されていると判定する
+                    if (unit.Contains('～'))
                     {
-                        var aTagText = slot.QuerySelector("a").Text().Trim();
-                        var unitStartNoIndex = aTagText.LastIndexOf(' ');
-                        var unitNo = aTagText.Substring(unitStartNoIndex + 1).Split('～');
-                        slotModelUnits.AddRange(unitNo.Select(x => Convert.ToInt32(x)));
-                        return slotModelUnits;
+                        var split = unit.Split('～').Select(int.Parse);
+                        var rangeStartNo = split.First();
+                        slotModelUnits.AddRange(Enumerable.Range(rangeStartNo, split.ElementAt(1) - rangeStartNo + 1));
+                    }
+                    else
+                    {
+                        slotModelUnits.Add(Convert.ToInt32(unit));
                     }
                 }
             }
 
             return slotModelUnits;
         }
-
         #endregion
     }
 }
