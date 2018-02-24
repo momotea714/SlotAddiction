@@ -106,11 +106,12 @@ namespace SlotAddiction.Models
             {
                 if (winingHistory.First() == WiningType.ART)
                 {
-                    if (winingHistory.Skip(1).Take(10).All(x => x == WiningType.BB))
+                    var throughCount = winingHistory.Skip(1).TakeWhile(x => x == WiningType.BB).Count();
+                    if (throughCount == 10)
                     {
                         status = "ART + BB10回スルー";
                     }
-                    else if (winingHistory.Skip(1).Take(9).All(x => x == WiningType.BB))
+                    else if (throughCount == 9)
                     {
                         status = "ART + BB9回スルー";
                     }
@@ -118,11 +119,12 @@ namespace SlotAddiction.Models
 
                 else
                 {
-                    if (winingHistory.Take(10).All(x => x == WiningType.BB))
+                    var throughCount = winingHistory.TakeWhile(x => x == WiningType.BB).Count();
+                    if (throughCount == 10)
                     {
                         status = "BB10回スルー";
                     }
-                    if (winingHistory.Take(9).All(x => x == WiningType.BB))
+                    else if (throughCount == 9)
                     {
                         status = "BB9回スルー";
                     }
