@@ -60,41 +60,50 @@ namespace SlotData.Models
         /// <returns></returns>
         public async Task GetSlotDataAsync(DateTime dataDate, List<string> slotModels)
         {
-            try
+            foreach (var tempo in _tempos)
             {
-                foreach (var tempo in _tempos)
+                var slotMachineStartNo = 0;
+                var slotMachineEndNo = 0;
+                var slotMachineNumbers = Enumerable.Range(0,1);
+                try
                 {
+                    slotMachineStartNo = tempo.SlotMachineStartNo;
+                    slotMachineEndNo = tempo.SlotMachineEndNo;
+                    slotMachineNumbers = Enumerable.Range(slotMachineStartNo, slotMachineEndNo - slotMachineStartNo + 1);
+                }
+                catch (Exception e)
+                {
+                    var hoge = "もしかして？";
+                }
 
-                    var slotMachineStartNo = tempo.SlotMachineStartNo;
-                    var slotMachineEndNo = tempo.SlotMachineEndNo;
-                    var slotMachineNumbers = Enumerable.Range(slotMachineStartNo, slotMachineEndNo - slotMachineStartNo + 1);
-
-                    if (slotModels != null)
+                if (slotModels != null)
+                {
+                    foreach (var slotModel in slotModels)
                     {
-                        foreach (var slotModel in slotModels)
+                        //店舗のフロアURLを作成
+                        _floorUrl = new Url($"{tempo.StoreURL}unit_list?model={slotModel}");
+
+                        //URL内のソースを取得
+                        try
                         {
-                            //店舗のフロアURLを作成
-                            _floorUrl = new Url($"{tempo.StoreURL}unit_list?model={slotModel}");
+                            var response = await _httpClient.GetStreamAsync(_floorUrl);
 
-                            //URL内のソースを取得
-                            try
-                            {
-                                var response = await _httpClient.GetStreamAsync(_floorUrl);
-
-                                //取得したソースを解析
-                                //後で変数名を変更しよう
-                                var floorDataForSlotModel = await _analysisHTML.AnalyseFloorAsync(response, slotModels);
-                                slotMachineNumbers = floorDataForSlotModel;
-                            }
-                            catch
-                            {
-                                //指定した機種が該当のホールになかったと判定する
-                                Console.WriteLine($"{tempo.StoreName}に{slotModel}はありませんでした。");
-                                slotMachineNumbers = new List<int>();
-                            }
+                            //取得したソースを解析
+                            //後で変数名を変更しよう
+                            var floorDataForSlotModel = await _analysisHTML.AnalyseFloorAsync(response, slotModels);
+                            slotMachineNumbers = floorDataForSlotModel;
+                        }
+                        catch
+                        {
+                            //指定した機種が該当のホールになかったと判定する
+                            Console.WriteLine($"{tempo.StoreName}に{slotModel}はありませんでした。");
+                            slotMachineNumbers = new List<int>();
                         }
                     }
+                }
 
+                try
+                {
                     foreach (var slotMachinNumber in slotMachineNumbers)
                     {
                         var month = $"{dataDate.Month:D2}";
@@ -113,17 +122,16 @@ namespace SlotData.Models
                         SlotPlayDataCollection.Add(analysisSlotData);
                     }
                 }
-            }
-            catch (Exception e)
-            {
-
-                if (e == new HttpRequestException())
+                catch (Exception e)
                 {
-                    var check = _floorUrl;
-                    var check2 = _slotDataUrl;
-                    //指定されたURLが不正です。
+                    if (e == new HttpRequestException())
+                    {
+                        var check = _floorUrl;
+                        var check2 = _slotDataUrl;
+                        //指定されたURLが不正です。
+                    }
+                    //throw;
                 }
-                //throw;
             }
         }
         #endregion
