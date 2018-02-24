@@ -104,7 +104,8 @@ namespace SlotAddiction.Models
 
             if (winingHistory.Any())
             {
-                if (winingHistory.First() == WiningType.ART)
+                if (winingHistory.First() == WiningType.ART
+                    || winingHistory.First() == WiningType.RB)
                 {
                     var throughCount = winingHistory.Skip(1).TakeWhile(x => x == WiningType.BB).Count();
                     if (throughCount == 10)

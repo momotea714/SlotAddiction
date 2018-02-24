@@ -123,7 +123,7 @@ namespace SlotData.Models
                     var check2 = _slotDataUrl;
                     //指定されたURLが不正です。
                 }
-                throw;
+                //throw;
             }
         }
         #endregion
