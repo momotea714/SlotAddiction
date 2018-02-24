@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
+using SlotAddiction.Const;
 using SlotAddiction.DataBase;
 
 namespace SlotAddiction.Models
@@ -17,18 +18,20 @@ namespace SlotAddiction.Models
         /// HTMLを解析します。
         /// </summary>
         /// <param name="html">解析したいHTMLを指定します。</param>
+        /// <param name="tempo">店舗情報</param>
         /// <returns></returns>
-        public async Task<SlotPlayData> AnalyseAsync(Stream html)
+        public async Task<SlotPlayData> AnalyseAsync(Stream html, Tempo tempo)
         {
-            return await AnalyseAsync(html, null);
+            return await AnalyseAsync(html, tempo, null);
         }
         /// <summary>
         /// HTMLを解析します。
         /// </summary>
         /// <param name="html">解析したいHTMLを指定します。</param>
-        /// <param name="slotModel">解析したい機種を指定します。</param>
+        /// <param name="tempo">店舗情報</param>
+        /// <param name="slotModels">解析したい機種を指定します。</param>
         /// <returns></returns>
-        public async Task<SlotPlayData> AnalyseAsync(Stream html, List<string> slotModel)
+        public async Task<SlotPlayData> AnalyseAsync(Stream html, Tempo tempo, List<string> slotModels)
         {
             if (html == null) return null;
 
@@ -44,8 +47,8 @@ namespace SlotAddiction.Models
             var slotMachineTitle = id_pachinkoTi.QuerySelector("strong").TextContent;
 
             //指定した機種でなければ終了
-            if (slotModel != null &&
-                !slotModel.Contains(slotMachineTitle))
+            if (slotModels != null &&
+                !slotModels.Contains(slotMachineTitle))
             {
                 return null;
             }
@@ -72,44 +75,84 @@ namespace SlotAddiction.Models
             var latest = (latestClass == null) ? body.QuerySelector(".older").TextContent : latestClass.TextContent;
 
             //各回数を取得する
-            var bbCount = body.QuerySelector(".Text-Big25").TextContent;
+            var class_TextBig25 = body.QuerySelector(".Text-Big25");
+            if (class_TextBig25 == null) return null;
+            var bbCount = class_TextBig25.TextContent;
             var textBig19classes = body.QuerySelectorAll(".Text-Big19");
-            var rbCount = textBig19classes.First().TextContent;
+            var rbCount = textBig19classes?.First().TextContent;
             var artCount = textBig19classes.ElementAt(1).TextContent;
             var startCount = textBig19classes.ElementAt(2).TextContent;
-            string throughType = null;
-            var throughCount = 0;
 
             //取得した機種がスルー回数を狙える機種ならばスルー回数を取得する
+            var status = string.Empty;
+            var winingHistory = new List<WiningType>();
             var db = new SlotAddictionDBContext();
-            var slotmodels = db.SlotModels.Where(x => x.SlotModelName.Contains(slotMachineTitle));
-            if (slotmodels.Any())
+            var slotModelInfo = db.SlotModels.SingleOrDefault(x => x.SlotModelName.Contains(slotMachineTitle));
+            if (slotModelInfo != null
+                && slotModelInfo.ThroughType == "Basilisk_Kizuna")
             {
-                throughType = slotmodels.Single().ThroughType;
-                //throughType = "BB";
+                //大当たり履歴が格納されているnumericValueTableクラスを取得
+                var class_numericValueTable = doc.QuerySelector(".numericValueTable");
+
+                var trTagChildTdTags = class_numericValueTable.QuerySelectorAll("tr td");
+                for (var i = 3; i < trTagChildTdTags.Length; i += 5)
+                {
+                    var winingType = (WiningType) Enum.Parse(typeof(WiningType), trTagChildTdTags[i].TextContent);
+                    winingHistory.Add(winingType);
+                }
+            }
+
+            if (winingHistory.Any())
+            {
+                if (winingHistory.First() == WiningType.ART)
+                {
+                    if (winingHistory.Skip(1).Take(10).All(x => x == WiningType.BB))
+                    {
+                        status = "ART + BB10回スルー";
+                    }
+                    else if (winingHistory.Skip(1).Take(9).All(x => x == WiningType.BB))
+                    {
+                        status = "ART + BB9回スルー";
+                    }
+                }
+
+                else
+                {
+                    if (winingHistory.Take(10).All(x => x == WiningType.BB))
+                    {
+                        status = "BB10回スルー";
+                    }
+                    if (winingHistory.Take(9).All(x => x == WiningType.BB))
+                    {
+                        status = "BB9回スルー";
+                    }
+                }
             }
 
             return new SlotPlayData
             {
+                StoreName = tempo.StoreName,
                 Title = slotMachineTitle,
-                CoinPrice = Convert.ToInt32(coinPrice),
+                CoinPrice = Convert.ToDecimal(coinPrice),
                 MachineNO = Convert.ToInt32(machineNO),
                 LatestUpdateDatetime = latest,
                 BigBonusCount = Convert.ToInt32(bbCount),
                 RegulerBonusCount = Convert.ToInt32(rbCount),
                 ARTCount = Convert.ToInt32(artCount),
                 StartCount = Convert.ToInt32(startCount),
+                Status = status,
+                //WiningHistory = winingHistory,
             };
         }
         /// <summary>
         /// 指定した機種が何番から何番まで置いてあるのかを取得する
         /// </summary>
         /// <param name="html"></param>
-        /// <param name="slotModel"></param>
+        /// <param name="slotModels"></param>
         /// <returns></returns>
-        public async Task<List<int>> AnalyseFloorAsync(Stream html, List<string> slotModel)
+        public async Task<List<int>> AnalyseFloorAsync(Stream html, List<string> slotModels)
         {
-            if (html == null || slotModel == null) return null;
+            if (html == null || slotModels == null) return null;
 
             //指定した機種が存在する台番号を格納するリストを作成
             var slotModelUnits = new List<int>();
@@ -119,46 +162,14 @@ namespace SlotAddiction.Models
             var doc = await parser.ParseAsync(html);
 
             //店内の機種一覧を取得
-            var animatedModalShowUnitName = doc.QuerySelector("#animatedModalShowUnitName .list2col");
+            var classes_sorterTablesorter = doc.QuerySelector(".sorter");
 
-            //以下のようなデータが設置機種分取得される
-            //<ul>
-            //<li class="Slot">
-            //<a href = "https://daidata.goraggio.com/100359/floor?rank=1F&bid=1&model=%EF%BE%8F%EF%BD%B2%EF%BD%BC%EF%BE%9E%EF%BD%AC%EF%BD%B8%EF%BE%9E%EF%BE%97%EF%BD%B0II" >< h2 >
-            //<h2>ﾏｲｼﾞｬｸﾞﾗｰII</h2>
-            //85～96                                        </a>
-            //</li>
-            //</ul>
-            var slotModelList = animatedModalShowUnitName.QuerySelectorAll("ul");
+            var slotModelTrTd = classes_sorterTablesorter.QuerySelectorAll("tr td");
 
-            //全てのulタグ内の機種名から指定した機種名に合致するデータを取得する
-            var datas = slotModelList.Where(x => slotModel.Contains(x.QuerySelectorAll("h2").ElementAt(1).TextContent)).ToList();
-
-            foreach(var data in datas)
+            for (var i = 1; i < slotModelTrTd.Length; i += 12)
             {
-                var splitNewline = data.QuerySelector("a").Text().Split('\n');
-
-                //指定した機種名が存在する台番号を取得する
-                //「85～96」のように取得される
-                var units = Regex.Replace(splitNewline.ElementAt(2), @"\s", string.Empty);
-
-                //同機種が散り散りに配置されている場合はカンマ区切りで取得される為に台番号の分解を行う
-                var separationUnits = units.Split(',');
-
-                foreach (var unit in separationUnits)
-                {
-                    //台番号の中に「～」が入っていれば隣り合って同機種が設置されていると判定する
-                    if (unit.Contains('～'))
-                    {
-                        var split = unit.Split('～').Select(int.Parse);
-                        var rangeStartNo = split.First();
-                        slotModelUnits.AddRange(Enumerable.Range(rangeStartNo, split.ElementAt(1) - rangeStartNo + 1));
-                    }
-                    else
-                    {
-                        slotModelUnits.Add(Convert.ToInt32(unit));
-                    }
-                }
+                var splitNewline = slotModelTrTd.ElementAt(i).TextContent.Split('\n');
+                slotModelUnits.Add(Convert.ToInt32(Regex.Replace(splitNewline.ElementAt(1), @"\s", string.Empty)));
             }
 
             return slotModelUnits;

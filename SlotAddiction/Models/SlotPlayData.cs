@@ -1,4 +1,5 @@
-﻿using System;
+﻿using System.Collections.Generic;
+using SlotAddiction.Const;
 
 namespace SlotAddiction.Models
 {
@@ -8,13 +9,17 @@ namespace SlotAddiction.Models
     public class SlotPlayData
     {
         /// <summary>
+        /// 設置店名
+        /// </summary>
+        public string StoreName { get; set; }
+        /// <summary>
         /// 台名
         /// </summary>
         public string Title { get; set; }
         /// <summary>
         /// コイン単価
         /// </summary>
-        public int CoinPrice { get; set; }
+        public decimal CoinPrice { get; set; }
         /// <summary>
         /// 台番号
         /// </summary>
@@ -39,5 +44,13 @@ namespace SlotAddiction.Models
         /// 現在の回転数
         /// </summary>
         public int StartCount { get; set; }
+        /// <summary>
+        /// ステータス
+        /// </summary>
+        public string Status { get; set; }
+        /// <summary>
+        /// 当選履歴
+        /// </summary>
+        public List<WiningType> WiningHistory { get; set; }
     }
 }

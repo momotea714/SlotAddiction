@@ -44,7 +44,7 @@ namespace SlotAddiction.Controllers
             }
             else
             {
-                await _slot.GetSlotDataAsync(date, slotModel);
+                await _slot.GetSlotDataAsync(date, slotModel.First().Split(',').ToList());
             }
 
             //response
