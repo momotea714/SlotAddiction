@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using AngleSharp.Extensions;
 using AngleSharp.Parser.Html;
 using SlotAddiction.Const;
 using SlotAddiction.DataBase;
@@ -13,6 +13,13 @@ namespace SlotAddiction.Models
 {
     public class AnalysisHTML
     {
+        #region フィールド
+        /// <summary>
+        /// 
+        /// </summary>
+        private readonly HtmlParser _htmlParser = new HtmlParser();
+        #endregion
+
         #region メソッド
         /// <summary>
         /// HTMLを解析します。
@@ -20,9 +27,9 @@ namespace SlotAddiction.Models
         /// <param name="html">解析したいHTMLを指定します。</param>
         /// <param name="tempo">店舗情報</param>
         /// <returns></returns>
-        public async Task<SlotPlayData> AnalyseAsync(Stream html, Tempo tempo)
+        public async Task<SlotPlayData> AnalyseAsync(Stream html, DbSet<SlotModel> dbSlotModel, Tempo tempo)
         {
-            return await AnalyseAsync(html, tempo, null);
+            return await AnalyseAsync(html, dbSlotModel, tempo, null);
         }
         /// <summary>
         /// HTMLを解析します。
@@ -31,13 +38,12 @@ namespace SlotAddiction.Models
         /// <param name="tempo">店舗情報</param>
         /// <param name="slotModels">解析したい機種を指定します。</param>
         /// <returns></returns>
-        public async Task<SlotPlayData> AnalyseAsync(Stream html, Tempo tempo, List<string> slotModels)
+        public async Task<SlotPlayData> AnalyseAsync(Stream html, DbSet<SlotModel> dbSlotModel, Tempo tempo, List<string> slotModels)
         {
             if (html == null) return null;
 
             // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
-            var parser = new HtmlParser();
-            var doc = await parser.ParseAsync(html);
+            var doc = await _htmlParser.ParseAsync(html);
 
             //Bodyを取得
             var body = doc.QuerySelector("#Main-Contents");
@@ -108,13 +114,13 @@ namespace SlotAddiction.Models
                     || winingHistory.First() == WiningType.RB)
                 {
                     var throughCount = winingHistory.Skip(1).TakeWhile(x => x == WiningType.BB).Count();
-                    if (throughCount == 10)
+                    if (throughCount == 11)
+                    {
+                        status = "ART + BB11回スルー";
+                    }
+                    else if (throughCount == 10)
                     {
                         status = "ART + BB10回スルー";
-                    }
-                    else if (throughCount == 9)
-                    {
-                        status = "ART + BB9回スルー";
                     }
                 }
 
@@ -153,16 +159,15 @@ namespace SlotAddiction.Models
         /// <param name="html"></param>
         /// <param name="slotModels"></param>
         /// <returns></returns>
-        public async Task<List<int>> AnalyseFloorAsync(Stream html, List<string> slotModels)
+        public async Task<HashSet<int>> AnalyseFloorAsync(Stream html, List<string> slotModels)
         {
             if (html == null || slotModels == null) return null;
 
             //指定した機種が存在する台番号を格納するリストを作成
-            var slotModelUnits = new List<int>();
+            var slotModelUnits = new HashSet<int>();
 
             // HTMLをAngleSharp.Parser.Html.HtmlParserオブジェクトパースさせる
-            var parser = new HtmlParser();
-            var doc = await parser.ParseAsync(html);
+            var doc = await _htmlParser.ParseAsync(html);
 
             //店内の機種一覧を取得
             var classes_sorterTablesorter = doc.QuerySelector(".sorter");

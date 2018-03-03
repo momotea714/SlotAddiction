@@ -123,4 +123,7 @@
   <data name="DefaultSchema" xml:space="preserve">
     <value>dbo</value>
   </data>
+  <data name="HashSetExtensions_AddRange_" xml:space="preserve">
+    <value>パラメーターがnullです。</value>
+  </data>
 </root>

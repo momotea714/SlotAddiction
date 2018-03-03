@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AngleSharp;
 using Reactive.Bindings;
 using SlotAddiction.DataBase;
+using SlotAddiction.Extentions;
 using SlotAddiction.Models;
 
 namespace SlotData.Models
@@ -23,17 +24,25 @@ namespace SlotData.Models
         /// </summary>
         private readonly AnalysisHTML _analysisHTML = new AnalysisHTML();
         /// <summary>
+        /// DB
+        /// </summary>
+        private readonly SlotAddictionDBContext _db = new SlotAddictionDBContext();
+        /// <summary>
         /// 店舗情報
         /// </summary>
-        private readonly DbSet<Tempo> _tempos = new SlotAddictionDBContext().Tempos;
+        private readonly DbSet<Tempo> _tempos;
+        /// <summary>
+        /// 機種情報
+        /// </summary>
+        private readonly DbSet<SlotModel> _slotModels;
         /// <summary>
         /// フロアのURL
         /// </summary>
-        private Url _floorUrl;
+        private readonly HashSet<Url> _floorUrl = new HashSet<Url>();
         /// <summary>
         /// 遊技台のURL
         /// </summary>
-        private Url _slotDataUrl;
+        private readonly HashSet<Url> _slotDataUrl = new HashSet<Url>();
         #endregion
 
         #region プロパティ
@@ -41,6 +50,17 @@ namespace SlotData.Models
         /// 遊技履歴を格納
         /// </summary>
         public ReactiveCollection<SlotPlayData> SlotPlayDataCollection { get; set; } = new ReactiveCollection<SlotPlayData>();
+        #endregion
+
+        #region コンストラクタ
+        /// <summary>
+        /// 
+        /// </summary>
+        public Slot()
+        {
+            _tempos = _db.Tempos;
+            _slotModels = _db.SlotModels;
+        }
         #endregion
 
         #region メソッド
@@ -56,70 +76,64 @@ namespace SlotData.Models
         /// 遊技台のデータ取得
         /// </summary>
         /// <param name="dataDate"></param>
-        /// <param name="slotModels"></param>
+        /// <param name="inputSlotModels"></param>
         /// <returns></returns>
-        public async Task GetSlotDataAsync(DateTime dataDate, List<string> slotModels)
+        public async Task GetSlotDataAsync(DateTime dataDate, List<string> inputSlotModels)
         {
             foreach (var tempo in _tempos)
             {
-                var slotMachineStartNo = 0;
-                var slotMachineEndNo = 0;
-                var slotMachineNumbers = Enumerable.Range(0,1);
-                try
-                {
-                    slotMachineStartNo = tempo.SlotMachineStartNo;
-                    slotMachineEndNo = tempo.SlotMachineEndNo;
-                    slotMachineNumbers = Enumerable.Range(slotMachineStartNo, slotMachineEndNo - slotMachineStartNo + 1);
-                }
-                catch (Exception e)
-                {
-                    var hoge = "もしかして？";
-                }
+                //初期化
+                _floorUrl.Clear();
+                _slotDataUrl.Clear();
 
-                if (slotModels != null)
+                var slotMachineStartNo = tempo.SlotMachineStartNo;
+                var slotMachineEndNo = tempo.SlotMachineEndNo;
+                var slotMachineNumbers = Enumerable.Range(slotMachineStartNo, slotMachineEndNo - slotMachineStartNo + 1);
+
+                if (inputSlotModels != null)
                 {
-                    foreach (var slotModel in slotModels)
+                    //指定した台が店舗に存在するか確かめられるURLを作成
+                    _floorUrl.AddRange(inputSlotModels.Select(slotModel => new Url($"{tempo.StoreURL}unit_list?model={slotModel}")));
+
+                    try
                     {
-                        //店舗のフロアURLを作成
-                        _floorUrl = new Url($"{tempo.StoreURL}unit_list?model={slotModel}");
+                        var floorStreamTasks = _floorUrl.Select(floorUrl => _httpClient.GetStreamAsync(floorUrl));
+                        var streamResponses = await Task.WhenAll(floorStreamTasks);
 
-                        //URL内のソースを取得
-                        try
-                        {
-                            var response = await _httpClient.GetStreamAsync(_floorUrl);
+                        //取得したソースを解析
+                        var floorAnalyseTasks = streamResponses.Select(response => _analysisHTML.AnalyseFloorAsync(response, inputSlotModels));
+                        var slotMachineNumbersForSlotModels = await Task.WhenAll(floorAnalyseTasks);
 
-                            //取得したソースを解析
-                            //後で変数名を変更しよう
-                            var floorDataForSlotModel = await _analysisHTML.AnalyseFloorAsync(response, slotModels);
-                            slotMachineNumbers = floorDataForSlotModel;
-                        }
-                        catch
-                        {
-                            //指定した機種が該当のホールになかったと判定する
-                            Console.WriteLine($"{tempo.StoreName}に{slotModel}はありませんでした。");
-                            slotMachineNumbers = new List<int>();
-                        }
+                        //リストの平準化
+                        slotMachineNumbers = slotMachineNumbersForSlotModels.SelectMany(x => x);
+                    }
+                    catch
+                    {
+                        //指定した機種が該当のホールになかったと判定する
+                        //Console.WriteLine($"{tempo.StoreName}に{slotModel}はありませんでした。");
+                        slotMachineNumbers = new HashSet<int>();
                     }
                 }
 
                 try
                 {
-                    foreach (var slotMachinNumber in slotMachineNumbers)
+                    //遊技台の情報があるURLを作成する
+                    var month = $"{dataDate.Month:D2}";
+                    var day = $"{dataDate.Day:D2}";
+                    _slotDataUrl.AddRange(slotMachineNumbers.Select(slotMachineNumber => new Url($"{tempo.StoreURL}detail?unit={slotMachineNumber}&target_date={dataDate.Year}-{month}-{day}")));
+
+                    //URL内のソースを取得
+                    var slotDataStreamTasks = _slotDataUrl.Select(url => _httpClient.GetStreamAsync(url));
+                    var streamResponses  = await Task.WhenAll(slotDataStreamTasks);
+
+                    //取得したソースを解析
+                    var slotDataAnalyseTasks = streamResponses.Select(response => _analysisHTML.AnalyseAsync(response, _slotModels, tempo, inputSlotModels));
+                    var analysisSlotData = await Task.WhenAll(slotDataAnalyseTasks);
+
+                    //解析したデータをコレクションに追加
+                    foreach (var slotPlayData in analysisSlotData)
                     {
-                        var month = $"{dataDate.Month:D2}";
-                        var day = $"{dataDate.Day:D2}";
-
-                        //リクエストを投げるURLを作成
-                        _slotDataUrl = new Url($"{tempo.StoreURL}detail?unit={slotMachinNumber}&target_date={dataDate.Year}-{month}-{day}");
-
-                        //URL内のソースを取得
-                        var response = await _httpClient.GetStreamAsync(_slotDataUrl);
-
-                        //取得したソースを解析
-                        var analysisSlotData = await _analysisHTML.AnalyseAsync(response, tempo, slotModels);
-
-                        //解析したデータをコレクションに追加
-                        SlotPlayDataCollection.Add(analysisSlotData);
+                        SlotPlayDataCollection.Add(slotPlayData);
                     }
                 }
                 catch (Exception e)
@@ -130,7 +144,7 @@ namespace SlotData.Models
                         var check2 = _slotDataUrl;
                         //指定されたURLが不正です。
                     }
-                    //throw;
+                    throw;
                 }
             }
         }

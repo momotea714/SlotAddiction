@@ -186,6 +186,7 @@
     <Compile Include="Controllers\SlotModelController.cs" />
     <Compile Include="Controllers\TempoController.cs" />
     <Compile Include="DataBase\SlotAddictionDBContext.cs" />
+    <Compile Include="Extentions\HashSetExtentions.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
