@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using AngleSharp;
 using Reactive.Bindings;
 using SlotAddiction.DataBase;
 using SlotAddiction.Extentions;
@@ -36,13 +36,15 @@ namespace SlotData.Models
         /// </summary>
         private readonly DbSet<SlotModel> _slotModels;
         /// <summary>
-        /// フロアのURL
+        /// フロアのURI
         /// </summary>
-        private readonly HashSet<Url> _floorUrl = new HashSet<Url>();
+        private readonly HashSet<Uri> _floorUri = new HashSet<Uri>();
         /// <summary>
-        /// 遊技台のURL
+        /// 遊技台のURI
         /// </summary>
-        private readonly HashSet<Url> _slotDataUrl = new HashSet<Url>();
+        private readonly HashSet<Uri> _slotDataUri = new HashSet<Uri>();
+
+        private Uri _streamUri;
         #endregion
 
         #region プロパティ
@@ -83,8 +85,8 @@ namespace SlotData.Models
             foreach (var tempo in _tempos)
             {
                 //初期化
-                _floorUrl.Clear();
-                _slotDataUrl.Clear();
+                _floorUri.Clear();
+                _slotDataUri.Clear();
 
                 var slotMachineStartNo = tempo.SlotMachineStartNo;
                 var slotMachineEndNo = tempo.SlotMachineEndNo;
@@ -92,12 +94,12 @@ namespace SlotData.Models
 
                 if (inputSlotModels != null)
                 {
-                    //指定した台が店舗に存在するか確かめられるURLを作成
-                    _floorUrl.AddRange(inputSlotModels.Select(slotModel => new Url($"{tempo.StoreURL}unit_list?model={slotModel}")));
+                    //指定した台が店舗に存在するか確かめられるURIを作成
+                    _floorUri.AddRange(inputSlotModels.Select(slotModel => new Uri($"{tempo.StoreURL}unit_list?model={slotModel}")));
 
                     try
                     {
-                        var floorStreamTasks = _floorUrl.Select(floorUrl => _httpClient.GetStreamAsync(floorUrl));
+                        var floorStreamTasks = _floorUri.Select(floorUri => _httpClient.GetStreamAsync(floorUri));
                         var streamResponses = await Task.WhenAll(floorStreamTasks);
 
                         //取得したソースを解析
@@ -117,33 +119,47 @@ namespace SlotData.Models
 
                 try
                 {
-                    //遊技台の情報があるURLを作成する
+                    //遊技台の情報があるURIを作成する
                     var month = $"{dataDate.Month:D2}";
                     var day = $"{dataDate.Day:D2}";
-                    _slotDataUrl.AddRange(slotMachineNumbers.Select(slotMachineNumber => new Url($"{tempo.StoreURL}detail?unit={slotMachineNumber}&target_date={dataDate.Year}-{month}-{day}")));
+                    _slotDataUri.AddRange(slotMachineNumbers
+                        .Select(slotMachineNumber => new Uri(
+                        $"{tempo.StoreURL}detail?unit={slotMachineNumber}&target_date={dataDate.Year}-{month}-{day}")));
 
-                    //URL内のソースを取得
-                    var slotDataStreamTasks = _slotDataUrl.Select(url => _httpClient.GetStreamAsync(url));
-                    var streamResponses  = await Task.WhenAll(slotDataStreamTasks);
+                    //URIが存在するかどうかをチェック
+                    var requestCheckTasks = _slotDataUri.Select(uri => _httpClient.GetAsync(uri));
+                    var requestCheckResponses = await Task.WhenAll(requestCheckTasks);
+
+                    //存在しないURIを取得
+                    var notExistUri = requestCheckResponses
+                        .Where(x => x.StatusCode != HttpStatusCode.OK)
+                        .Select(x => x.RequestMessage.RequestUri);
+
+                    //存在するURI内のソースを取得
+                    var slotDataStreamTasks = _slotDataUri
+                        .Except(notExistUri)
+                        .Select(uri => _httpClient.GetStreamAsync(uri));
+                    var streamResponses = await Task.WhenAll(slotDataStreamTasks);
 
                     //取得したソースを解析
-                    var slotDataAnalyseTasks = streamResponses.Select(response => _analysisHTML.AnalyseAsync(response, _slotModels, tempo, inputSlotModels));
+                    var slotDataAnalyseTasks =
+                        streamResponses.Select(
+                            response => _analysisHTML.AnalyseAsync(response, _slotModels, tempo, inputSlotModels));
                     var analysisSlotData = await Task.WhenAll(slotDataAnalyseTasks);
 
                     //解析したデータをコレクションに追加
-                    foreach (var slotPlayData in analysisSlotData)
+                    foreach (var slotPlayData in analysisSlotData.Where(x => x != null))
                     {
                         SlotPlayDataCollection.Add(slotPlayData);
                     }
                 }
                 catch (Exception e)
                 {
-                    if (e == new HttpRequestException())
-                    {
-                        var check = _floorUrl;
-                        var check2 = _slotDataUrl;
-                        //指定されたURLが不正です。
-                    }
+                    var check = _floorUri;
+                    var check2 = _slotDataUri;
+                    var check3 = _streamUri;
+
+                    //他に何があるんやろうか
                     throw;
                 }
             }
